@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: network-health-controller
+  namespace: silent-drops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: network-health-controller
+  template:
+    metadata:
+      labels:
+        app: network-health-controller
+    spec:
+      serviceAccountName: network-health-controller
+      containers:
+        - name: controller
+          image: silent-drops-controller:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HUBBLE_RELAY_ADDR
+              value: hubble-relay.kube-system.svc:80
+            - name: WATCH_NAMESPACE
+              value: silent-drops
+            - name: NETWORKHEALTH_NAME
+              value: frontend-backend
+            - name: SOURCE_POD_PREFIX
+              value: frontend-
+            - name: DESTINATION_POD_PREFIX
+              value: backend-
+            - name: HEALTHY_WINDOW_SECONDS
+              value: "10"

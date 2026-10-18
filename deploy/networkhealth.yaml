@@ -1,0 +1,10 @@
+apiVersion: demo.io/v1alpha1
+kind: NetworkHealth
+metadata:
+  name: frontend-backend
+  namespace: silent-drops
+spec:
+  sourcePodPrefix: frontend-
+  destinationPodPrefix: backend-
+  healthyWindowSeconds: 10
+# Do not set status here: the runtime controller owns status.

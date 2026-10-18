@@ -1,0 +1,21 @@
+# Deliberately blocks frontend -> backend by selecting the backend and
+# allowing ingress only from a pod label that the frontend does not have.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-ingress
+  namespace: silent-drops
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: allow-backend
+      ports:
+        - protocol: TCP
+          port: 8081

@@ -1,0 +1,19 @@
+# Example only: replace repoURL and path with your Git repository.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: silent-drops
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/emilyxinyi/silent-drops-demo.git
+    targetRevision: HEAD
+    path: deploy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: silent-drops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
