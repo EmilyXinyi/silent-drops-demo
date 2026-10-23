@@ -151,7 +151,7 @@ func watch(ctx context.Context, client observerpb.ObserverClient, kube dynamic.I
 			lastDrop = now
 			dropCount++
 			healthy = false
-			msg := fmt.Sprintf("Hubble observed a dropped flow from %s to %s", podName(f.GetSource()), podName(f.GetDestination()))
+			msg := fmt.Sprintf("Hubble observed a dropped flow from %s to %s", endpointName(f.GetSource(), f.GetIP().GetSource()), endpointName(f.GetDestination(), f.GetIP().GetDestination()))
 			if err := updateStatus(ctx, kube, cfg, false, "DroppedFlowObserved", msg, dropCount, &lastDrop); err != nil {
 				log.Printf("update degraded status: %v", err)
 			} else {
@@ -165,22 +165,34 @@ func isRelevantDrop(f *flowpb.Flow, cfg config) bool {
 	if f.GetVerdict() != flowpb.Verdict_DROPPED {
 		return false
 	}
-	src, dst := f.GetSource(), f.GetDestination()
-	if src == nil || dst == nil {
+	switch f.GetDropReasonDesc() {
+	case flowpb.DropReason_POLICY_DENIED, flowpb.DropReason_POLICY_DENY:
+	default:
 		return false
 	}
-	if src.GetNamespace() != cfg.namespace || dst.GetNamespace() != cfg.namespace {
+	dst := f.GetDestination()
+	if dst.GetNamespace() != cfg.namespace || !strings.HasPrefix(dst.GetPodName(), cfg.destinationPrefix) {
 		return false
 	}
-	return strings.HasPrefix(src.GetPodName(), cfg.sourcePrefix) &&
-		strings.HasPrefix(dst.GetPodName(), cfg.destinationPrefix)
+	// When Service traffic is translated and masqueraded in the host stack
+	// (e.g. k3s kube-proxy alongside Cilium), the drop at the destination
+	// shows the node's cilium_host IP as its source, with no pod metadata.
+	// Only enforce the source match when Hubble attributed the flow to a pod.
+	src := f.GetSource()
+	if src.GetPodName() == "" {
+		return true
+	}
+	return src.GetNamespace() == cfg.namespace && strings.HasPrefix(src.GetPodName(), cfg.sourcePrefix)
 }
 
-func podName(ep *flowpb.Endpoint) string {
-	if ep == nil {
-		return "unknown"
+func endpointName(ep *flowpb.Endpoint, ip string) string {
+	if name := ep.GetPodName(); name != "" {
+		return name
 	}
-	return ep.GetPodName()
+	if ip != "" {
+		return ip
+	}
+	return "unknown"
 }
 
 func updateStatus(ctx context.Context, kube dynamic.Interface, cfg config, healthy bool, reason, message string, count int64, lastDrop *time.Time) error {

@@ -30,4 +30,4 @@ spec:
             - name: DESTINATION_POD_PREFIX
               value: backend-
             - name: HEALTHY_WINDOW_SECONDS
-              value: "10"
+              value: "5"

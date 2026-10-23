@@ -7,3 +7,6 @@ docker build -t silent-drops-controller:dev -f "$ROOT/controller/Dockerfile" "$R
 kind load docker-image silent-drops-backend:dev --name silent-drops
 kind load docker-image silent-drops-frontend:dev --name silent-drops
 kind load docker-image silent-drops-controller:dev --name silent-drops
+
+# do this if you are using k3d
+# k3d image import silent-drops-backend:dev silent-drops-frontend:dev silent-drops-controller:dev -c silent-drops

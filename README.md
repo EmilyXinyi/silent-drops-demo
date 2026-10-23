@@ -51,15 +51,21 @@ If your installed Cilium CLI uses a different port-forward workflow, follow the 
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl rollout status deploy/argocd-application-controller -n argocd
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# checking if Argo CD is working properly
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+argocd admin initial-password -n argocd
+argocd login <ARGOCD_SERVER>
+
 ```
 
 Configure the custom health check:
 
 ```bash
-kubectl apply -f argocd/argocd-cm.yaml
-kubectl rollout restart deploy/argocd-application-controller -n argocd
+kubectl patch configmap argocd-cm -n argocd --type merge --patch-file argocd/argocd-cm.yaml
+# kubectl apply --server-side --field-manager=silent-drops -f argocd/argocd-cm.yaml
+kubectl rollout restart statefulset/argocd-application-controller -n argocd
 ```
 
 Note: if `argocd-cm` already exists, merge this data key into it rather than replacing the ConfigMap. The sample ConfigMap contains only the customization.
@@ -86,7 +92,7 @@ kubectl -n silent-drops get pods
 Port-forward the frontend and test it:
 
 ```bash
-kubectl -n silent-drops port-forward svc/frontend 8080:8080
+kubectl -n silent-drops port-forward svc/frontend 8090:8080
 curl -i http://localhost:8080/
 ```
 
@@ -148,7 +154,7 @@ Generate requests in another terminal:
 
 ```bash
 while true; do
-  curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:8080/ || true
+  curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:8090/ || true
   sleep 1
 done
 ```
@@ -156,7 +162,8 @@ done
 Observe dropped traffic:
 
 ```bash
-hubble observe --verdict DROPPED --namespace silent-drops
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- \
+  hubble observe --verdict DROPPED --namespace silent-drops -f
 ```
 
 Expected result: the frontend requests fail, Hubble reports relevant dropped flows, the controller sets `NetworkHealth.status.healthy=false`, and Argo CD marks the custom resource Degraded.

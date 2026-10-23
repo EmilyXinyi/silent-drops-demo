@@ -6,5 +6,5 @@ metadata:
 spec:
   sourcePodPrefix: frontend-
   destinationPodPrefix: backend-
-  healthyWindowSeconds: 10
+  healthyWindowSeconds: 5
 # Do not set status here: the runtime controller owns status.
